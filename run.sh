@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 cd $HOME
+
+# check environment variables
+
 if [ ! -n "$WERCKER_S3SYNC_KEY_ID" ]
 then
     fail 'missing or empty option key_id, please check wercker.yml'
@@ -11,9 +14,9 @@ then
     fail 'missing or empty option key_secret, please check wercker.yml'
 fi
 
-if [ ! -n "$WERCKER_S3SYNC_BUCKET_URL" ]
+if [ ! -n "$WERCKER_S3SYNC_BUCKET_NAME" ]
 then
-    fail 'missing or empty option bucket_url, please check wercker.yml'
+    fail 'missing or empty option bucket_name, please check wercker.yml'
 fi
 
 if [ ! -n "$WERCKER_S3SYNC_OPTS" ]
@@ -31,27 +34,46 @@ else
     export WERCKER_S3SYNC_DELETE_REMOVED="--delete-removed"
 fi
 
-if ! type s3cmd &> /dev/null ;
+# install necessary packages and gems
+
+sudo apt-get update;
+sudo apt-get install -y default-jre;
+
+if ! type s3_website &> /dev/null ;
 then
-    info 's3cmd not found, start installing it'
-    wget -O- -q http://s3tools.org/repo/deb-all/stable/s3tools.key | sudo apt-key add -
-    sudo wget -O/etc/apt/sources.list.d/s3tools.list http://s3tools.org/repo/deb-all/stable/s3tools.list
-    sudo apt-get update && sudo apt-get install s3cmd
-    success 's3cmd installed succesfully'
+    gem install s3_website;
 else
-    info 'skip s3cmd install, command already available'
-    debug "type s3cmd: $(type s3cmd)"
+    info 'skip s3_website install, command already available'
+    debug "type s3_website: $(type s3_website)"
 fi
 
-if [ -e '.s3cfg' ]
+# set up s3_website.yml
+
+if [ -e 's3_website.yml' ]
 then
-    warn '.s3cfg file already exists in home directory and will be overwritten'
+    warn 's3_website.yml file already exists in home directory and will be overwritten'
 fi
 
-echo '[default]' > '.s3cfg'
-echo "access_key=$WERCKER_S3SYNC_KEY_ID" >> .s3cfg
-echo "secret_key=$WERCKER_S3SYNC_KEY_SECRET" >> .s3cfg
-debug "generated .s3cfg for key $WERCKER_S3SYNC_KEY_ID"
+cat > s3_website.yml <<EOF
+s3_id: $WERCKER_S3SYNC_KEY_ID
+s3_secret: $WERCKER_S3SYNC_KEY_SECRET
+s3_bucket: $WERCKER_S3SYNC_BUCKET_NAME
+s3_endpoint: $WERCKER_S3SYNC_REGION
+cloudfront_distribution_id: $WERCKER_S3SYNC_CF_DISTRIBUTION_ID
+max_age: 300
+gzip:
+- .html
+- .css
+- .js
+- .svg
+- .ttf
+- .eot
+- .woff
+exclude_from_upload:
+- .DS_Store
+EOF
+
+# cd to source_dir
 
 source_dir="$WERCKER_ROOT/$WERCKER_S3SYNC_SOURCE_DIR"
 if cd "$source_dir" ;
@@ -63,15 +85,7 @@ fi
 
 info 'starting s3 synchronisation'
 
-set +e
-SYNC="s3cmd sync $WERCKER_S3SYNC_OPTS $WERCKER_S3SYNC_DELETE_REMOVED --verbose ./ $WERCKER_S3SYNC_BUCKET_URL"
-debug "$SYNC"
-sync_output=$($SYNC)
+s3_website cfg apply --headless
+s3_website push --site .
 
-if [[ $? -ne 0 ]];then
-    warn $sync_output
-    fail 's3cmd failed';
-else
-    success 'finished s3 synchronisation';
-fi
-set -e
+success 'finished s3 synchronisation';
