@@ -85,7 +85,7 @@ fi
 
 info 'starting s3 synchronisation'
 
-s3_website cfg apply --headless
-s3_website push --site .
+bundle exec s3_website cfg apply --headless
+bundle exec s3_website push --site .
 
 success 'finished s3 synchronisation';
