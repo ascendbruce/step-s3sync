@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-cd $HOME
+cd "$WERCKER_ROOT"
 
 # check environment variables
 
@@ -75,7 +75,6 @@ EOF
 
 info 'starting s3 synchronisation'
 
-cd "$WERCKER_ROOT"
 bundle exec s3_website cfg apply --headless
 bundle exec s3_website push --site "$WERCKER_S3SYNC_SOURCE_DIR"
 
