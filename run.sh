@@ -73,19 +73,9 @@ exclude_from_upload:
 - .DS_Store
 EOF
 
-# cd to source_dir
-
-source_dir="$WERCKER_ROOT/$WERCKER_S3SYNC_SOURCE_DIR"
-if cd "$source_dir" ;
-then
-    debug "changed directory $source_dir, content is: $(ls -l)"
-else
-    fail "unable to change directory to $source_dir"
-fi
-
 info 'starting s3 synchronisation'
 
 bundle exec s3_website cfg apply --headless
-bundle exec s3_website push --site .
+bundle exec s3_website push --site $source_dir
 
 success 'finished s3 synchronisation';
