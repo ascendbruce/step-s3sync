@@ -75,7 +75,8 @@ EOF
 
 info 'starting s3 synchronisation'
 
+cd "$WERCKER_ROOT"
 bundle exec s3_website cfg apply --headless
-bundle exec s3_website push --site $source_dir
+bundle exec s3_website push --site "$WERCKER_S3SYNC_SOURCE_DIR"
 
 success 'finished s3 synchronisation';
